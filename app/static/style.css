@@ -31,25 +31,20 @@ body {
   background-image: var(--bg-glow);
   color: var(--text);
   min-height: 100vh;
-  padding: 28px 18px 48px;
 }
 a { color: inherit; text-decoration: none; }
 
 .shell {
   width: 100%;
-  max-width: 1120px;
-  margin: 0 auto;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  box-shadow: var(--shadow);
-  overflow: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .shell-header {
-  background: linear-gradient(135deg, #0d1620 0%, #152230 100%);
+  background: #0b121a;
   border-bottom: 1px solid var(--border);
-  padding: 22px 28px;
+  padding: 18px max(24px, calc((100% - 1140px) / 2));
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -98,7 +93,10 @@ a { color: inherit; text-decoration: none; }
 }
 
 .shell-body {
-  padding: 28px;
+  width: min(1140px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 28px 0 40px;
+  flex: 1;
 }
 
 .hero-strip {
@@ -300,9 +298,9 @@ tr:hover td { background: rgba(204, 238, 255, 0.03); }
 .timeline li:last-child { border-bottom: 0; }
 
 .shell-footer {
-  padding: 14px 28px;
+  padding: 16px max(24px, calc((100% - 1140px) / 2));
   border-top: 1px solid var(--border);
-  background: #0d1620;
+  background: #0b121a;
   display: flex;
   justify-content: space-between;
   font-size: 0.78rem;
