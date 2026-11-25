@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assinador Pro — Dashboard de Documentos</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <a href="/" class="logo">
+        <span class="logo-mark">AP</span>
+        <span>Assinador Pro</span>
+      </a>
+      <nav class="nav">
+        <a href="/" class="active">Dashboard</a>
+        <a href="/upload">Novo Documento / Editor</a>
+        <a href="/validate">Validar Autenticidade</a>
+        <a href="/docs" target="_blank">API OpenAPI (/docs)</a>
+      </nav>
+      <div class="sidebar-foot">
+        <strong>Selo Criptográfico</strong><br />
+        SHA-256 + Certificado PDF + Webhook HMAC
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1>Painel de Documentos</h1>
+          <p>Gerencie envios, posicione campos de assinatura no PDF e audite hashes SHA-256.</p>
+        </div>
+        <a href="/upload" class="btn btn-primary">+ Novo Documento PDF</a>
+      </div>
+
+      <section class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total de Documentos</div>
+          <div class="kpi-value" id="kpiTotal">--</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Aguardando Assinatura</div>
+          <div class="kpi-value" id="kpiPending">--</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Documentos Assinados</div>
+          <div class="kpi-value" id="kpiSigned">--</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Taxa de Conclusão</div>
+          <div class="kpi-value" id="kpiRate">--%</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input id="searchBox" class="input" style="min-width:280px" placeholder="Buscar por título, signatário ou ID..." />
+          <div class="actions">
+            <button class="btn btn-sm" data-filter="ALL">Todos</button>
+            <button class="btn btn-sm" data-filter="PENDING">Pendentes</button>
+            <button class="btn btn-sm" data-filter="SIGNED">Assinados</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Documento</th>
+                <th>Signatário</th>
+                <th>Status</th>
+                <th>Hash SHA-256</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="docsBody">
+              <tr><td colspan="5" class="mono">Carregando documentos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let allDocs = [];
+    let statusFilter = "ALL";
+
+    async function loadDashboard() {
+      const [statsResp, docsResp] = await Promise.all([
+        fetch("/api/stats"),
+        fetch("/api/documents"),
+      ]);
+      const stats = await statsResp.json();
+      allDocs = await docsResp.json();
+
+      document.getElementById("kpiTotal").textContent = stats.total;
+      document.getElementById("kpiPending").textContent = stats.pending;
+      document.getElementById("kpiSigned").textContent = stats.signed;
+      document.getElementById("kpiRate").textContent = `${stats.completion_rate}%`;
+      renderTable();
+    }
+
+    function renderTable() {
+      const q = document.getElementById("searchBox").value.trim().toLowerCase();
+      const filtered = allDocs.filter((d) => {
+        if (statusFilter !== "ALL" && d.status !== statusFilter) return false;
+        if (!q) return true;
+        return `${d.doc_id} ${d.title} ${d.signer_name || ""} ${d.signer_email || ""}`.toLowerCase().includes(q);
+      });
+
+      const tbody = document.getElementById("docsBody");
+      tbody.innerHTML = "";
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="mono">Nenhum documento encontrado.</td></tr>';
+        return;
+      }
+
+      filtered.forEach((d) => {
+        const isSigned = d.status === "SIGNED";
+        const badge = isSigned
+          ? '<span class="badge badge-signed">Assinado</span>'
+          : '<span class="badge badge-pending">Pendente</span>';
+        const hashShow = (d.signed_sha256 || d.original_sha256 || "").slice(0, 18) + "...";
+        const signerInfo = d.signer_name
+          ? `<strong>${d.signer_name}</strong><br><span class="mono">${d.signer_email || ""}</span>`
+          : '<span class="mono">A definir no portal</span>';
+
+        const actionBtns = isSigned
+          ? `
+            <a class="btn btn-sm btn-primary" href="/api/documents/${d.doc_id}/download">Baixar PDF</a>
+            <a class="btn btn-sm" href="/validate?q=${d.doc_id}">Validar</a>
+          `
+          : `
+            <a class="btn btn-sm" href="/editor/${d.doc_id}">Posicionar</a>
+            <a class="btn btn-sm btn-primary" href="/sign/${d.doc_id}">Assinar</a>
+          `;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${d.title}</strong><br><span class="mono">${d.doc_id} · ${d.created_at}</span></td>
+          <td>${signerInfo}</td>
+          <td>${badge}</td>
+          <td class="mono">${hashShow}</td>
+          <td><div class="actions">${actionBtns}</div></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById("searchBox").addEventListener("input", renderTable);
+    document.querySelectorAll("[data-filter]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        statusFilter = btn.dataset.filter;
+        renderTable();
+      });
+    });
+
+    loadDashboard();
+  </script>
+</body>
+</html>
