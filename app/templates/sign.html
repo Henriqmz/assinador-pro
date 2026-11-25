@@ -9,44 +9,36 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
-      <a href="/" class="logo">
+  <div class="shell">
+    <header class="shell-header">
+      <a href="/" class="brand-wrap">
         <span class="logo-mark">AP</span>
-        <span>Assinador Pro</span>
-      </a>
-      <nav class="nav">
-        <a href="/">Dashboard</a>
-        <a href="/upload">Novo Documento / Editor</a>
-        <a href="/validate">Validar Autenticidade</a>
-      </nav>
-      <div class="sidebar-foot">
-        Portal seguro de assinatura eletrônica com registro de IP, data UTC e SHA-256.
-      </div>
-    </aside>
-
-    <main class="main">
-      <div class="topbar">
         <div>
-          <h1 id="docTitle">Assinatura Eletrônica</h1>
-          <p class="mono" id="docSub">Carregando documento...</p>
+          <div class="brand-title" id="docTitle">Assinatura Eletrônica</div>
+          <div class="brand-sub mono" id="docSub">Carregando documento...</div>
         </div>
-        <a href="/" class="btn">← Voltar ao Dashboard</a>
-      </div>
+      </a>
+      <nav class="top-nav">
+        <a href="/">← Documentos</a>
+        <a href="/validate">Validar SHA-256</a>
+      </nav>
+    </header>
 
-      <div class="split-grid">
+    <main class="shell-body">
+      <div class="content-grid">
         <section class="pdf-stage">
-          <span class="mono">Pré-visualização do Documento Original</span>
+          <span class="mono">1 · Revisão do Documento Original</span>
           <div class="pdf-canvas-wrap">
             <canvas id="pdfCanvas"></canvas>
           </div>
         </section>
 
-        <section class="panel">
-          <h3 style="margin-top:0">Assinar Documento</h3>
+        <section class="info-card">
+          <span class="step-label">Passo 2 · Identificação &amp; Assinatura</span>
+          <h2 style="margin:0 0 1rem;font-size:1.15rem">Assinar Documento Eletronicamente</h2>
           <form id="signForm">
             <div class="form-group">
-              <label>Nome Completo do Signatário</label>
+              <label>Nome Completo</label>
               <input id="signerName" class="input" required />
             </div>
             <div class="form-group">
@@ -56,23 +48,28 @@
 
             <div class="sig-tabs">
               <button type="button" class="sig-tab active" id="tabDraw">Desenhar Assinatura</button>
-              <button type="button" class="sig-tab" id="tabType">Assinatura Tipográfica</button>
+              <button type="button" class="sig-tab" id="tabType">Assinatura Caligráfica</button>
             </div>
 
             <div class="sig-pad-wrap">
               <canvas id="sigCanvas" width="420" height="150"></canvas>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-              <span class="mono" id="sigHint">Assine com o mouse ou dedo acima</span>
+              <span class="mono" id="sigHint">Assine no quadro acima</span>
               <button type="button" class="btn btn-sm" id="clearSig">Limpar</button>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width:100%">Confirmar e Assinar PDF</button>
+            <button type="submit" class="btn btn-primary" style="width:100%">Confirmar e Assinar Documento</button>
           </form>
           <div id="signResult"></div>
         </section>
       </div>
     </main>
+
+    <footer class="shell-footer">
+      <span>Registro automático de IP, data/hora UTC e hash SHA-256</span>
+      <span>Certificado anexado ao PDF final</span>
+    </footer>
   </div>
 
   <script>
@@ -83,7 +80,7 @@
 
     const sigCanvas = document.getElementById("sigCanvas");
     const ctx = sigCanvas.getContext("2d");
-    ctx.strokeStyle = "#0b2540";
+    ctx.strokeStyle = "#091017";
     ctx.lineWidth = 2.6;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -91,7 +88,7 @@
     function drawTypedSignature() {
       ctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
       const name = document.getElementById("signerName").value || "Assinatura Eletrônica";
-      ctx.fillStyle = "#0f172a";
+      ctx.fillStyle = "#091017";
       ctx.font = "700 44px 'Dancing Script', Georgia, serif";
       ctx.fillText(name, 26, 94);
     }
@@ -120,19 +117,17 @@
       mode = "draw";
       document.getElementById("tabDraw").classList.add("active");
       document.getElementById("tabType").classList.remove("active");
-      document.getElementById("sigHint").textContent = "Assine com o mouse ou dedo acima";
+      document.getElementById("sigHint").textContent = "Assine no quadro acima";
       ctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
     });
     document.getElementById("tabType").addEventListener("click", () => {
       mode = "type";
       document.getElementById("tabType").classList.add("active");
       document.getElementById("tabDraw").classList.remove("active");
-      document.getElementById("sigHint").textContent = "Prévia automática baseada no nome";
+      document.getElementById("sigHint").textContent = "Assinatura caligráfica automática";
       drawTypedSignature();
     });
-    document.getElementById("signerName").addEventListener("input", () => {
-      if (mode === "type") drawTypedSignature();
-    });
+    document.getElementById("signerName").addEventListener("input", () => { if (mode === "type") drawTypedSignature(); });
 
     if (window.pdfjsLib) {
       pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -141,14 +136,14 @@
     async function boot() {
       docData = await (await fetch(`/api/documents/${DOC_ID}`)).json();
       document.getElementById("docTitle").textContent = docData.title;
-      document.getElementById("docSub").textContent = `ID: ${docData.doc_id} · SHA-256 Original: ${docData.original_sha256.slice(0, 24)}...`;
+      document.getElementById("docSub").textContent = `ID: ${docData.doc_id} · SHA-256: ${docData.original_sha256.slice(0, 22)}...`;
       document.getElementById("signerName").value = docData.signer_name || "Marina Alves";
       document.getElementById("signerEmail").value = docData.signer_email || "marina@acme-demo.example";
 
       if (window.pdfjsLib) {
         const pdf = await pdfjsLib.getDocument(`/api/documents/${DOC_ID}/pdf`).promise;
         const page = await pdf.getPage(1);
-        const vp = page.getViewport({ scale: 1.0 });
+        const vp = page.getViewport({ scale: 0.92 });
         const c = document.getElementById("pdfCanvas");
         c.width = vp.width;
         c.height = vp.height;
@@ -166,18 +161,16 @@
       fd.append("y", String(docData.stamp_y || 104));
       fd.append("signature_data_url", sigCanvas.toDataURL("image/png"));
 
-      const res = await fetch(`/api/documents/${DOC_ID}/sign`, { method: "POST", body: fd });
-      const data = await res.json();
+      const data = await (await fetch(`/api/documents/${DOC_ID}/sign`, { method: "POST", body: fd })).json();
       document.getElementById("signResult").innerHTML = `
         <div class="alert-box alert-ok">
           <strong>Documento assinado com sucesso!</strong><br />
-          Hash final SHA-256: <span class="mono" style="color:inherit">${data.signed_sha256.slice(0, 28)}...</span><br /><br />
-          <a class="btn btn-sm btn-primary" href="/api/documents/${DOC_ID}/download">Baixar PDF Assinado + Certificado</a>
+          Hash final: <span class="mono" style="color:inherit">${data.signed_sha256.slice(0, 26)}...</span><br /><br />
+          <a class="btn btn-sm btn-primary" href="/api/documents/${DOC_ID}/download">Baixar PDF Assinado</a>
           <a class="btn btn-sm" href="/validate?q=${DOC_ID}">Ver Auditoria</a>
         </div>
       `;
     });
-
     boot();
   </script>
 </body>

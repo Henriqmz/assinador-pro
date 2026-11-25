@@ -8,35 +8,28 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
-      <a href="/" class="logo">
+  <div class="shell">
+    <header class="shell-header">
+      <a href="/" class="brand-wrap">
         <span class="logo-mark">AP</span>
-        <span>Assinador Pro</span>
-      </a>
-      <nav class="nav">
-        <a href="/">Dashboard</a>
-        <a href="/upload">Novo Documento / Editor</a>
-        <a href="/validate" class="active">Validar Autenticidade</a>
-        <a href="/docs" target="_blank">API OpenAPI (/docs)</a>
-      </nav>
-      <div class="sidebar-foot">
-        Verificação pública de integridade binária via SHA-256.
-      </div>
-    </aside>
-
-    <main class="main">
-      <div class="topbar">
         <div>
-          <h1>Validador de Autenticidade (SHA-256)</h1>
-          <p>Consulte pelo ID do documento, cole o hash SHA-256 ou envie o arquivo PDF assinado para checar integridade.</p>
+          <div class="brand-title">Assinador Pro</div>
+          <div class="brand-sub">Validação Pública de Integridade Criptográfica</div>
         </div>
-        <a href="/" class="btn">← Voltar ao Dashboard</a>
-      </div>
+      </a>
+      <nav class="top-nav">
+        <a href="/">Documentos</a>
+        <a href="/upload">Editor Visual</a>
+        <a href="/validate" class="active">Validar SHA-256</a>
+        <a href="/docs" target="_blank">API /docs</a>
+      </nav>
+    </header>
 
-      <div class="split-grid">
-        <section class="panel">
-          <h3 style="margin-top:0">Consultar por ID ou Hash SHA-256</h3>
+    <main class="shell-body">
+      <div class="content-grid">
+        <section class="info-card">
+          <span class="step-label">Consulta Pública</span>
+          <h2 style="margin:0 0 1rem;font-size:1.15rem">Validar por ID ou Hash SHA-256</h2>
           <form id="hashForm">
             <div class="form-group">
               <label>ID do Documento ou Hash SHA-256</label>
@@ -47,46 +40,49 @@
 
           <hr style="border:0;border-top:1px solid var(--border);margin:1.5rem 0" />
 
-          <h3 style="margin-top:0">Ou Validar Enviando o Arquivo PDF</h3>
+          <h3 style="margin:0 0 0.75rem;font-size:1rem">Ou Validar Enviando o PDF Assinado</h3>
           <form id="fileVerifyForm">
             <div class="form-group">
-              <label>Arquivo PDF Assinado</label>
+              <label>Arquivo PDF</label>
               <input id="verifyFileInput" type="file" accept="application/pdf" class="input" required />
             </div>
             <button type="submit" class="btn">Calcular SHA-256 e Validar</button>
           </form>
         </section>
 
-        <section class="panel" id="resultPanel">
-          <h3 style="margin-top:0">Resultado da Auditoria</h3>
-          <p class="mono">Informe um documento à esquerda para visualizar o selo criptográfico e a trilha de eventos.</p>
+        <section class="info-card" id="resultPanel">
+          <span class="step-label">Resultado da Auditoria</span>
+          <h2 style="margin:0 0 0.75rem;font-size:1.15rem">Aguardando consulta</h2>
+          <p class="mono">Informe um ID/hash ou envie um arquivo PDF à esquerda para consultar o selo criptográfico.</p>
         </section>
       </div>
     </main>
+
+    <footer class="shell-footer">
+      <span>Verificação binária determinística SHA-256</span>
+      <span>Trilha de eventos auditável</span>
+    </footer>
   </div>
 
   <script>
     function renderResult(data) {
       const panel = document.getElementById("resultPanel");
       if (!data.found) {
-        panel.innerHTML = `
-          <h3 style="margin-top:0">Resultado da Auditoria</h3>
-          <div class="alert-box alert-err"><strong>Documento não reconhecido ou adulterado.</strong><br />Nenhum registro íntegro corresponde a essa consulta.</div>
-        `;
+        panel.innerHTML = `<span class="step-label">Resultado</span><div class="alert-box alert-err"><strong>Documento não reconhecido ou adulterado.</strong></div>`;
         return;
       }
       const statusBox = data.intact
-        ? '<div class="alert-box alert-ok"><strong>✓ AUTENTICIDADE CONFIRMADA (Íntegro)</strong><br />O hash SHA-256 calculado no arquivo coincide exatamente com o registro selado.</div>'
-        : '<div class="alert-box alert-err"><strong>✕ ALERTA: ARQUIVO ADULTERADO</strong><br />O hash atual diverge do hash registrado na assinatura.</div>';
-
+        ? '<div class="alert-box alert-ok"><strong>✓ AUTENTICIDADE CONFIRMADA (Íntegro)</strong><br />O hash SHA-256 do arquivo coincide exatamente com o registro selado.</div>'
+        : '<div class="alert-box alert-err"><strong>✕ ALERTA: ARQUIVO ADULTERADO</strong></div>';
       const eventsHtml = (data.events || [])
         .map((ev) => `<li><strong>${ev.event_type}</strong> · <span class="mono">${ev.created_at}</span><br />${ev.details}</li>`)
         .join("");
 
       panel.innerHTML = `
-        <h3 style="margin-top:0">${data.title}</h3>
+        <span class="step-label">Certificado Verificado</span>
+        <h2 style="margin:0 0 0.5rem;font-size:1.15rem">${data.title}</h2>
         ${statusBox}
-        <div style="margin-top:1rem;font-size:0.86rem">
+        <div style="margin-top:1rem;font-size:0.86rem;line-height:1.65">
           <div><strong>ID:</strong> <span class="mono">${data.doc_id}</span></div>
           <div><strong>Signatário:</strong> ${data.signer_name || "-"} (${data.signer_email || "-"})</div>
           <div><strong>Assinado em:</strong> <span class="mono">${data.signed_at || "Pendente"}</span></div>
@@ -97,29 +93,16 @@
       `;
     }
 
-    async function verifyQuery(q) {
-      const res = await fetch(`/api/verify?q=${encodeURIComponent(q)}`);
-      renderResult(await res.json());
-    }
-
-    document.getElementById("hashForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      await verifyQuery(document.getElementById("queryInput").value.trim());
-    });
-
+    async function verifyQuery(q) { renderResult(await (await fetch(`/api/verify?q=${encodeURIComponent(q)}`)).json()); }
+    document.getElementById("hashForm").addEventListener("submit", async (e) => { e.preventDefault(); await verifyQuery(document.getElementById("queryInput").value.trim()); });
     document.getElementById("fileVerifyForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const fd = new FormData();
       fd.append("file", document.getElementById("verifyFileInput").files[0]);
-      const res = await fetch("/api/validate-upload", { method: "POST", body: fd });
-      renderResult(await res.json());
+      renderResult(await (await fetch("/api/validate-upload", { method: "POST", body: fd })).json());
     });
-
     const urlQ = new URLSearchParams(window.location.search).get("q");
-    if (urlQ) {
-      document.getElementById("queryInput").value = urlQ;
-      verifyQuery(urlQ);
-    }
+    if (urlQ) { document.getElementById("queryInput").value = urlQ; verifyQuery(urlQ); }
   </script>
 </body>
 </html>

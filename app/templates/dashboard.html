@@ -3,58 +3,57 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Assinador Pro — Dashboard de Documentos</title>
+  <title>Assinador Pro — Assinatura Eletrônica Segura</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
-      <a href="/" class="logo">
+  <div class="shell">
+    <header class="shell-header">
+      <a href="/" class="brand-wrap">
         <span class="logo-mark">AP</span>
-        <span>Assinador Pro</span>
-      </a>
-      <nav class="nav">
-        <a href="/" class="active">Dashboard</a>
-        <a href="/upload">Novo Documento / Editor</a>
-        <a href="/validate">Validar Autenticidade</a>
-        <a href="/docs" target="_blank">API OpenAPI (/docs)</a>
-      </nav>
-      <div class="sidebar-foot">
-        <strong>Selo Criptográfico</strong><br />
-        SHA-256 + Certificado PDF + Webhook HMAC
-      </div>
-    </aside>
-
-    <main class="main">
-      <div class="topbar">
         <div>
-          <h1>Painel de Documentos</h1>
-          <p>Gerencie envios, posicione campos de assinatura no PDF e audite hashes SHA-256.</p>
+          <div class="brand-title">Assinador Pro</div>
+          <div class="brand-sub">Assinatura Eletrônica · Carimbo PDF · Auditoria SHA-256</div>
+        </div>
+      </a>
+      <nav class="top-nav">
+        <a href="/" class="active">Documentos</a>
+        <a href="/upload">Editor Visual</a>
+        <a href="/validate">Validar SHA-256</a>
+        <a href="/docs" target="_blank">API /docs</a>
+      </nav>
+    </header>
+
+    <main class="shell-body">
+      <section class="hero-strip">
+        <div>
+          <h1>Central de Documentos</h1>
+          <p>Envie contratos em PDF, posicione o campo de assinatura e acompanhe a integridade criptográfica.</p>
         </div>
         <a href="/upload" class="btn btn-primary">+ Novo Documento PDF</a>
-      </div>
+      </section>
 
       <section class="kpi-grid">
         <div class="kpi-card">
-          <div class="kpi-label">Total de Documentos</div>
+          <div class="kpi-label">Total</div>
           <div class="kpi-value" id="kpiTotal">--</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Aguardando Assinatura</div>
+          <div class="kpi-label">Pendentes</div>
           <div class="kpi-value" id="kpiPending">--</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Documentos Assinados</div>
+          <div class="kpi-label">Assinados</div>
           <div class="kpi-value" id="kpiSigned">--</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Taxa de Conclusão</div>
+          <div class="kpi-label">Conclusão</div>
           <div class="kpi-value" id="kpiRate">--%</div>
         </div>
       </section>
 
-      <section class="panel">
+      <section class="info-card">
         <div class="toolbar">
           <input id="searchBox" class="input" style="min-width:280px" placeholder="Buscar por título, signatário ou ID..." />
           <div class="actions">
@@ -63,7 +62,6 @@
             <button class="btn btn-sm" data-filter="SIGNED">Assinados</button>
           </div>
         </div>
-
         <div class="table-wrap">
           <table>
             <thead>
@@ -82,6 +80,11 @@
         </div>
       </section>
     </main>
+
+    <footer class="shell-footer">
+      <span>Selo Criptográfico SHA-256 + Certificado PDF</span>
+      <span>Webhooks HMAC-SHA256</span>
+    </footer>
   </div>
 
   <script>
@@ -89,13 +92,9 @@
     let statusFilter = "ALL";
 
     async function loadDashboard() {
-      const [statsResp, docsResp] = await Promise.all([
-        fetch("/api/stats"),
-        fetch("/api/documents"),
-      ]);
+      const [statsResp, docsResp] = await Promise.all([fetch("/api/stats"), fetch("/api/documents")]);
       const stats = await statsResp.json();
       allDocs = await docsResp.json();
-
       document.getElementById("kpiTotal").textContent = stats.total;
       document.getElementById("kpiPending").textContent = stats.pending;
       document.getElementById("kpiSigned").textContent = stats.signed;
@@ -110,14 +109,12 @@
         if (!q) return true;
         return `${d.doc_id} ${d.title} ${d.signer_name || ""} ${d.signer_email || ""}`.toLowerCase().includes(q);
       });
-
       const tbody = document.getElementById("docsBody");
       tbody.innerHTML = "";
       if (!filtered.length) {
         tbody.innerHTML = '<tr><td colspan="5" class="mono">Nenhum documento encontrado.</td></tr>';
         return;
       }
-
       filtered.forEach((d) => {
         const isSigned = d.status === "SIGNED";
         const badge = isSigned
@@ -127,17 +124,9 @@
         const signerInfo = d.signer_name
           ? `<strong>${d.signer_name}</strong><br><span class="mono">${d.signer_email || ""}</span>`
           : '<span class="mono">A definir no portal</span>';
-
         const actionBtns = isSigned
-          ? `
-            <a class="btn btn-sm btn-primary" href="/api/documents/${d.doc_id}/download">Baixar PDF</a>
-            <a class="btn btn-sm" href="/validate?q=${d.doc_id}">Validar</a>
-          `
-          : `
-            <a class="btn btn-sm" href="/editor/${d.doc_id}">Posicionar</a>
-            <a class="btn btn-sm btn-primary" href="/sign/${d.doc_id}">Assinar</a>
-          `;
-
+          ? `<a class="btn btn-sm btn-primary" href="/api/documents/${d.doc_id}/download">Baixar PDF</a><a class="btn btn-sm" href="/validate?q=${d.doc_id}">Validar</a>`
+          : `<a class="btn btn-sm" href="/editor/${d.doc_id}">Posicionar</a><a class="btn btn-sm btn-primary" href="/sign/${d.doc_id}">Assinar</a>`;
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td><strong>${d.title}</strong><br><span class="mono">${d.doc_id} · ${d.created_at}</span></td>
@@ -152,12 +141,8 @@
 
     document.getElementById("searchBox").addEventListener("input", renderTable);
     document.querySelectorAll("[data-filter]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        statusFilter = btn.dataset.filter;
-        renderTable();
-      });
+      btn.addEventListener("click", () => { statusFilter = btn.dataset.filter; renderTable(); });
     });
-
     loadDashboard();
   </script>
 </body>

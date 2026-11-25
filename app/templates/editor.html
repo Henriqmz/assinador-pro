@@ -9,36 +9,28 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
-      <a href="/" class="logo">
+  <div class="shell">
+    <header class="shell-header">
+      <a href="/" class="brand-wrap">
         <span class="logo-mark">AP</span>
-        <span>Assinador Pro</span>
-      </a>
-      <nav class="nav">
-        <a href="/">Dashboard</a>
-        <a href="/upload" class="active">Novo Documento / Editor</a>
-        <a href="/validate">Validar Autenticidade</a>
-        <a href="/docs" target="_blank">API OpenAPI (/docs)</a>
-      </nav>
-      <div class="sidebar-foot">
-        Clique na página do PDF para posicionar exatamente onde o carimbo será aplicado.
-      </div>
-    </aside>
-
-    <main class="main">
-      <div class="topbar">
         <div>
-          <h1 id="pageTitle">Editor Visual de Posicionamento</h1>
-          <p>Envie um PDF ou reposicione o campo de assinatura clicando diretamente sobre a página.</p>
+          <div class="brand-title">Assinador Pro</div>
+          <div class="brand-sub">Editor Visual de Posicionamento em PDF</div>
         </div>
-        <a href="/" class="btn">← Voltar ao Dashboard</a>
-      </div>
+      </a>
+      <nav class="top-nav">
+        <a href="/">Documentos</a>
+        <a href="/upload" class="active">Editor Visual</a>
+        <a href="/validate">Validar SHA-256</a>
+        <a href="/docs" target="_blank">API /docs</a>
+      </nav>
+    </header>
 
-      <div class="split-grid">
+    <main class="shell-body">
+      <div class="content-grid">
         <section class="pdf-stage">
           <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
-            <span class="mono" id="pdfMeta">Carregando prévia do PDF...</span>
+            <span class="mono" id="pdfMeta">Carregando PDF...</span>
             <span class="mono" id="coordReadout">Página 1 · X=58 · Y=104</span>
           </div>
           <div class="pdf-canvas-wrap" id="canvasWrap">
@@ -49,34 +41,40 @@
           </div>
         </section>
 
-        <section class="panel">
-          <h3 style="margin-top:0">Configuração do Documento</h3>
+        <section class="info-card">
+          <span class="step-label">Passo 1 · Configuração &amp; Coordenadas</span>
+          <h2 style="margin:0 0 1rem;font-size:1.15rem">Posicionar Carimbo de Assinatura</h2>
           <form id="uploadForm">
             <div class="form-group">
               <label>Título do Documento</label>
-              <input id="titleInput" class="input" placeholder="Ex.: Contrato de Prestação de Serviços" required />
+              <input id="titleInput" class="input" required />
             </div>
             <div class="form-group">
               <label>Nome do Signatário</label>
-              <input id="signerNameInput" class="input" placeholder="Ex.: Marina Alves" />
+              <input id="signerNameInput" class="input" />
             </div>
             <div class="form-group">
               <label>E-mail do Signatário</label>
-              <input id="signerEmailInput" type="email" class="input" placeholder="marina@empresa.example" />
+              <input id="signerEmailInput" type="email" class="input" />
             </div>
-            <div class="form-group" id="fileGroup">
-              <label>Arquivo PDF (opcional se já carregado)</label>
+            <div class="form-group">
+              <label>Substituir ou Enviar Novo PDF (opcional)</label>
               <input id="fileInput" type="file" accept="application/pdf" class="input" />
             </div>
             <div class="actions">
-              <button type="submit" class="btn btn-primary" id="saveBtn">Salvar Posição e Gerar Link</button>
-              <a id="goSignBtn" href="#" class="btn" style="display:none">Abrir Portal de Assinatura →</a>
+              <button type="submit" class="btn btn-primary">Salvar Posição</button>
+              <a id="goSignBtn" href="#" class="btn" style="display:none">Ir para Assinatura →</a>
             </div>
           </form>
           <div id="editorMsg"></div>
         </section>
       </div>
     </main>
+
+    <footer class="shell-footer">
+      <span>Clique em qualquer ponto da página para mover o bloco de assinatura</span>
+      <span>Coordenadas PDF (pontos A4)</span>
+    </footer>
   </div>
 
   <script>
@@ -111,28 +109,29 @@
       const vp1 = page.getViewport({ scale: 1.0 });
       pdfWidthPt = vp1.width;
       pdfHeightPt = vp1.height;
-      const viewport = page.getViewport({ scale: 1.05 });
+      const viewport = page.getViewport({ scale: 0.92 });
       const canvas = document.getElementById("pdfCanvas");
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-      document.getElementById("pdfMeta").textContent = `PDF carregado (${pdf.numPages} pág.) — clique para mover o carimbo`;
+      document.getElementById("pdfMeta").textContent = `PDF carregado (${pdf.numPages} pág.)`;
       updateMarkerVisual();
     }
 
     document.getElementById("canvasWrap").addEventListener("click", (e) => {
       const canvas = document.getElementById("pdfCanvas");
       const rect = canvas.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const clickY = e.clientY - rect.top;
-      const scaleX = pdfWidthPt / rect.width;
-      const scaleY = pdfHeightPt / rect.height;
-      stampX = Math.max(10, Math.min(pdfWidthPt - 270, clickX * scaleX));
-      stampY = Math.max(10, Math.min(pdfHeightPt - 84, (rect.height - clickY) * scaleY));
+      stampX = Math.max(10, Math.min(pdfWidthPt - 270, (e.clientX - rect.left) * (pdfWidthPt / rect.width)));
+      stampY = Math.max(10, Math.min(pdfHeightPt - 84, (rect.height - (e.clientY - rect.top)) * (pdfHeightPt / rect.height)));
       updateMarkerVisual();
     });
 
     async function boot() {
+      if (!activeDocId) {
+        const docs = await (await fetch("/api/documents")).json();
+        const first = docs.find((d) => d.status === "PENDING") || docs[0];
+        if (first) activeDocId = first.doc_id;
+      }
       if (activeDocId) {
         const doc = await (await fetch(`/api/documents/${activeDocId}`)).json();
         document.getElementById("titleInput").value = doc.title;
@@ -143,39 +142,22 @@
         document.getElementById("goSignBtn").href = `/sign/${activeDocId}`;
         document.getElementById("goSignBtn").style.display = "inline-flex";
         await renderPdf(`/api/documents/${activeDocId}/pdf`);
-      } else {
-        // Load first pending doc preview if available
-        const docs = await (await fetch("/api/documents")).json();
-        const first = docs.find((d) => d.status === "PENDING") || docs[0];
-        if (first) {
-          activeDocId = first.doc_id;
-          document.getElementById("titleInput").value = first.title;
-          document.getElementById("signerNameInput").value = first.signer_name || "";
-          document.getElementById("signerEmailInput").value = first.signer_email || "";
-          document.getElementById("goSignBtn").href = `/sign/${activeDocId}`;
-          document.getElementById("goSignBtn").style.display = "inline-flex";
-          await renderPdf(`/api/documents/${activeDocId}/pdf`);
-        }
       }
     }
 
     document.getElementById("uploadForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const msg = document.getElementById("editorMsg");
       const file = document.getElementById("fileInput").files[0];
-
       if (file) {
         const fd = new FormData();
         fd.append("file", file);
         fd.append("title", document.getElementById("titleInput").value);
         fd.append("signer_name", document.getElementById("signerNameInput").value);
         fd.append("signer_email", document.getElementById("signerEmailInput").value);
-        const res = await fetch("/api/documents", { method: "POST", body: fd });
-        const created = await res.json();
+        const created = await (await fetch("/api/documents", { method: "POST", body: fd })).json();
         activeDocId = created.doc_id;
         await renderPdf(`/api/documents/${activeDocId}/pdf`);
       }
-
       if (activeDocId) {
         await fetch(`/api/documents/${activeDocId}/position`, {
           method: "PATCH",
@@ -184,10 +166,9 @@
         });
         document.getElementById("goSignBtn").href = `/sign/${activeDocId}`;
         document.getElementById("goSignBtn").style.display = "inline-flex";
-        msg.innerHTML = `<div class="alert-box alert-ok">Posição salva (X=${Math.round(stampX)}, Y=${Math.round(stampY)}). Link do signatário pronto: <strong>/sign/${activeDocId}</strong></div>`;
+        document.getElementById("editorMsg").innerHTML = `<div class="alert-box alert-ok">Posição salva (X=${Math.round(stampX)}, Y=${Math.round(stampY)}). Link: <strong>/sign/${activeDocId}</strong></div>`;
       }
     });
-
     boot();
   </script>
 </body>
