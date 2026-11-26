@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Assinador Pro — Assinatura Eletrônica Segura</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
+  <script src="/static/theme.js"></script>
 </head>
 <body>
   <div class="shell">
@@ -22,6 +23,10 @@
         <a href="/upload">Editor Visual</a>
         <a href="/validate">Validar SHA-256</a>
         <a href="/docs" target="_blank">API /docs</a>
+        <button id="themeToggle" class="theme-btn" type="button">
+          <span id="themeIcon">☀</span>
+          <span id="themeLabel">Modo Claro</span>
+        </button>
       </nav>
     </header>
 
@@ -57,7 +62,7 @@
         <div class="toolbar">
           <input id="searchBox" class="input" style="min-width:280px" placeholder="Buscar por título, signatário ou ID..." />
           <div class="actions">
-            <button class="btn btn-sm" data-filter="ALL">Todos</button>
+            <button class="btn btn-sm active-filter" data-filter="ALL">Todos</button>
             <button class="btn btn-sm" data-filter="PENDING">Pendentes</button>
             <button class="btn btn-sm" data-filter="SIGNED">Assinados</button>
           </div>
@@ -69,7 +74,7 @@
                 <th>Documento</th>
                 <th>Signatário</th>
                 <th>Status</th>
-                <th>Hash SHA-256</th>
+                <th>Hash SHA-256 (clique p/ copiar)</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -102,6 +107,12 @@
       renderTable();
     }
 
+    window.copyHash = async (hash) => {
+      if (!hash) return;
+      await navigator.clipboard.writeText(hash);
+      if (window.apToast) window.apToast("Hash SHA-256 copiado!");
+    };
+
     function renderTable() {
       const q = document.getElementById("searchBox").value.trim().toLowerCase();
       const filtered = allDocs.filter((d) => {
@@ -120,7 +131,8 @@
         const badge = isSigned
           ? '<span class="badge badge-signed">Assinado</span>'
           : '<span class="badge badge-pending">Pendente</span>';
-        const hashShow = (d.signed_sha256 || d.original_sha256 || "").slice(0, 18) + "...";
+        const fullHash = d.signed_sha256 || d.original_sha256 || "";
+        const hashShow = fullHash.slice(0, 18) + "...";
         const signerInfo = d.signer_name
           ? `<strong>${d.signer_name}</strong><br><span class="mono">${d.signer_email || ""}</span>`
           : '<span class="mono">A definir no portal</span>';
@@ -132,7 +144,7 @@
           <td><strong>${d.title}</strong><br><span class="mono">${d.doc_id} · ${d.created_at}</span></td>
           <td>${signerInfo}</td>
           <td>${badge}</td>
-          <td class="mono">${hashShow}</td>
+          <td><span class="mono hash-copy" title="Copiar SHA-256 completo" onclick="copyHash('${fullHash}')">${hashShow}</span></td>
           <td><div class="actions">${actionBtns}</div></td>
         `;
         tbody.appendChild(tr);
@@ -141,7 +153,12 @@
 
     document.getElementById("searchBox").addEventListener("input", renderTable);
     document.querySelectorAll("[data-filter]").forEach((btn) => {
-      btn.addEventListener("click", () => { statusFilter = btn.dataset.filter; renderTable(); });
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-filter]").forEach((b) => b.classList.remove("active-filter"));
+        btn.classList.add("active-filter");
+        statusFilter = btn.dataset.filter;
+        renderTable();
+      });
     });
     loadDashboard();
   </script>
